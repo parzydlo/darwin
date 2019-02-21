@@ -15,4 +15,13 @@ class GrammarSymbol
         end
         @value = value
     end
+
+    def to_s
+        case @type
+        when :terminal
+            "#{@value}"
+        when :nonterminal
+            "NT#{@value}"
+        end
+    end
 end

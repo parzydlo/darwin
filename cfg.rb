@@ -1,11 +1,4 @@
 class CFG
-    # grammar is represented as a list of rules
-    # each rule is stored as a hash (k, v), where:
-    # k - GrammarSymbol (non-terminal)
-    # v - list of GrammarSymbols (any)
-    #
-    # nt_count - keeps track of the number of NTs
-    #
     # This class does not validate a grammar. It is responsibility of the 
     # caller to ensure legality of operations like adding / removing rules.
 
@@ -13,13 +6,13 @@ class CFG
 
     def initialize(rules)
         @rules = rules
-        initialize_nt_count
+        rules.nil? ? @nt_count = 0 : initialize_nt_count
     end
 
     def add_rule(rule)
         # check whether NT on LHS was already present in the grammar 
         @rules.each { |old_rule| 
-            if old_rule.key == rule.key
+            if old_rule.lhs == rule.lhs
                 # rule does not feature a new NT
                 @rules << rule
                 return
@@ -35,7 +28,7 @@ class CFG
         # check whether NT on LHS is no longer present in the grammar
         @rules.each { |old_rule| 
             # still present
-            return if old_rule.key == rule.key
+            return if old_rule.lhs == rule.lhs
         }
         # last occurrence removed
         update_nt_count(-1)
@@ -45,10 +38,16 @@ class CFG
         Marshal.load(Marshal.dump(self))
     end
 
+    def to_s
+        @rules.reduce("") { |repr, rule| 
+            repr + "#{rule}\n"
+        }
+    end
+
     private
         def initialize_nt_count
             # count non-terminals
-            @nt_count = @rules.keys.reduce { |memo, nt| nt.value > memo.value ? nt : memo }
+            @nt_count = @rules.reduce(0) { |memo, rule| rule.lhs.value + memo }
         end
 
         def update_nt_count(delta)
