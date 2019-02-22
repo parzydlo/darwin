@@ -24,4 +24,8 @@ class GrammarSymbol
             "NT#{@value}"
         end
     end
+
+    def deepcopy
+        return GrammarSymbol.new(@type, @value)
+    end
 end

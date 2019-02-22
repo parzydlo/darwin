@@ -11,52 +11,72 @@ class GNF2CNF
 
     private
         def initialize(input)
-            @grammar = input.copy
+            @grammar = input.deepcopy
         end
 
         def cnf
-            perform_term
-            perform_bin
+            post_term_rules = perform_term
+            @grammar = CFG.new(post_term_rules)
+            post_bin_rules = perform_bin
+            @grammar = CFG.new(post_bin_rules)
             return @grammar
         end
 
         def perform_term
             # since input grammar is in GNF, it can be assumed that every RHS
             # features a single terminal and it is the first element of RHS
-            @grammar.rules.each { |rule| term(rule) }
-        end
-
-        def term(rule)
-            # input rule: A0 -> a A1 A2 ... AN
-            old_terminal = rule.values[0]
-            # 1. replace terminal with new non-terminal
-            new_nt = generate_nt
-            rule.values[0] = new_nt
-            # 2. create new rule
-            new_rule = {new_nt => [old_terminal]}
-            # 3. append new rule to grammar
-            @grammar.add_rule(new_rule)
+            curr_size = @grammar.nt_count
+            results = []
+            p "performing TERM on #{@grammar.rules.size} rules"
+            @grammar.rules.each_with_index { |rule, i| 
+                p "applying TERM to rule #{i}"
+                if rule.rhs.size == 1
+                    # rule is: A -> b
+                    # no need to increment NT counter
+                    results << rule
+                    next
+                end
+                old_terminal = rule.rhs[0]
+                old_nts = rule.rhs[1..]
+                new_nt = GrammarSymbol.new(:nonterminal, curr_size)
+                replacement_rule = GrammarRule.new(rule.lhs, [new_nt] + old_nts)
+                new_rule = GrammarRule.new(new_nt, [old_terminal])
+                results << replacement_rule
+                results << new_rule
+                curr_size += 1
+            }
+            return results
         end
 
         def perform_bin
             # apply BIN to every rule whose RHS features more than 2 NTs
-            @grammar.rules.each { |rule| 
-                if rule.values.size > 2
-                    bin(rule)
-                end
+            curr_size = @grammar.nt_count
+            result = []
+            unfolded = []
+            unfold = lambda { |rule| 
+                return rule if rule.rhs.size <= 2
+                new_nt = GrammarSymbol.new(:nonterminal, curr_size)
+                head = rule.rhs[0]
+                tail = rule.rhs[1..]
+                replacement_rule = GrammarRule.new(rule.lhs, [head, new_nt])
+                unfolded << replacement_rule
+                curr_size += 1
+                new_rule = unfold[GrammarRule.new(new_nt, tail)]
+                unfolded << new_rule
+                return new_rule
             }
-        end
-
-        def bin(rule)
-            # input rule: A0 -> A1 A2 ... AN | n > 3
-            # 1. create new NT
-            new_nt = generate_nt
-            # 2. replace A2 ... AN with new NT
-            tail = rule.values[1..]
-            rule.values = [rule.values[0], new_nt]
-            # 3. create new rule: B -> A2 ... AN
-            new_rule = {new_nt => tail}
-            @grammar.add_rule(new_rule)
+            @grammar.rules.each_with_index { |rule, i| 
+                p "applying BIN to rule #{i}"
+                unfolded = []
+                if rule.rhs.size <= 2
+                    # rule is like: A -> b or A -> BC
+                    result << rule
+                    next
+                end
+                unfold[rule]
+                result += unfolded.flatten
+            }
+            return result
         end
 
         def generate_nt
