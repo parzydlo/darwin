@@ -5,10 +5,11 @@ class CFG
     # The only assumption about a grammar is that it is valid inbetween
     # modifications.
 
-    attr_reader :rules, :nt_count
+    attr_reader :rules, :nt_count, :start_sym
 
-    def initialize(rules)
+    def initialize(rules, start)
         @rules = rules
+        @start_sym = start
         initialize_nt_count
     end
 
@@ -38,11 +39,11 @@ class CFG
     end
 
     def deepcopy
-        return CFG.new(@rules.map(&:deepcopy))
+        return CFG.new(@rules.map(&:deepcopy), @start_sym.deepcopy)
     end
 
     def to_s
-        @rules.reduce("") { |repr, rule| 
+        "Start NT: #{@start_sym}\n" + @rules.reduce("") { |repr, rule| 
             repr + "#{rule}\n"
         }
     end

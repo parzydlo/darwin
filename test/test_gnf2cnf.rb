@@ -1,7 +1,7 @@
-require_relative './cfg.rb'
-require_relative './grammar_rule.rb'
-require_relative './grammar_symbol.rb'
-require_relative './gnf2cnf.rb'
+require_relative '../cfg.rb'
+require_relative '../grammar_rule.rb'
+require_relative '../grammar_symbol.rb'
+require_relative '../gnf2cnf.rb'
 
 # create following GNF grammar:
 # A -> x B A | eps
@@ -15,7 +15,7 @@ t_y = GrammarSymbol.new(:terminal, 'y')
 r1 = GrammarRule.new(nt_a, [t_x, nt_b, nt_a])
 r2 = GrammarRule.new(nt_b, [t_y, nt_b])
 
-gnf_grammar = CFG.new([r1, r2])
+gnf_grammar = CFG.new([r1, r2], nt_a)
 p gnf_grammar
 
 # call GNF2CNF#convert to obtain CNF grammar

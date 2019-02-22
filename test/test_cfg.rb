@@ -1,6 +1,6 @@
-require_relative './cfg.rb'
-require_relative './grammar_rule.rb'
-require_relative './grammar_symbol.rb'
+require_relative '../cfg.rb'
+require_relative '../grammar_rule.rb'
+require_relative '../grammar_symbol.rb'
 
 # build following grammar:
 # A -> x B A | eps
@@ -15,7 +15,7 @@ nt_b = GrammarSymbol.new(:nonterminal, 1)
 r1 = GrammarRule.new(nt_a, [t_x, nt_b, nt_a])
 r2 = GrammarRule.new(nt_b, [t_y, nt_b])
 
-grammar = CFG.new([r1, r2])
+grammar = CFG.new([r1, r2], nt_a)
 print grammar
 
 nt_c = GrammarSymbol.new(:nonterminal, 2)
