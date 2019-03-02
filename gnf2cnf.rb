@@ -16,16 +16,16 @@ class GNF2CNF
 
         def cnf
             post_term_rules = perform_term
-            @grammar = CFG.new(post_term_rules)
+            @grammar = CFG.new(post_term_rules, @grammar.start_sym)
             post_bin_rules = perform_bin
-            @grammar = CFG.new(post_bin_rules)
+            @grammar = CFG.new(post_bin_rules, @grammar.start_sym)
             return @grammar
         end
 
         def perform_term
             # since input grammar is in GNF, it can be assumed that every RHS
             # features a single terminal and it is the first element of RHS
-            curr_size = @grammar.nt_count
+            curr_size = @grammar.nonterminals.size
             results = []
             p "performing TERM on #{@grammar.rules.size} rules"
             @grammar.rules.each_with_index { |rule, i| 
@@ -50,7 +50,7 @@ class GNF2CNF
 
         def perform_bin
             # apply BIN to every rule whose RHS features more than 2 NTs
-            curr_size = @grammar.nt_count
+            curr_size = @grammar.nonterminals.size
             result = []
             unfolded = []
             unfold = lambda { |rule| 

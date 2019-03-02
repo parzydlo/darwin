@@ -1,3 +1,5 @@
+require 'set'
+
 class CFG
     # This class does not validate a grammar. It is responsibility of the 
     # caller to ensure legality of operations like adding / removing rules.
@@ -5,37 +7,35 @@ class CFG
     # The only assumption about a grammar is that it is valid inbetween
     # modifications.
 
-    attr_reader :rules, :nt_count, :start_sym
+    attr_reader :rules, :start_sym, :nonterminals, :terminals
 
     def initialize(rules, start)
         @rules = rules
         @start_sym = start
-        initialize_nt_count
+        @terminals = collect_symbols(:terminal)
+        @nonterminals = collect_symbols(:nonterminal)
     end
 
     def add_rule(rule)
-        # check whether NT on LHS was already present in the grammar 
-        @rules.each_with_index { |old_rule, i| 
-            if old_rule.lhs.equal?(rule.lhs)
-                # rule does not introduce a new NT
-                @rules << rule
-                return
-            end
+        # add all symbols to t/nt sets
+        @nonterminals.add(rule.lhs)
+        rule.rhs.each { |rhs_sym| 
+            rhs_sym.type == :terminal ? @terminals.add(rhs_sym) : @nonterminals.add(rhs_sym)
         }
-        # rule features a new NT
         @rules << rule
-        update_nt_count(1)
     end
 
     def remove_rule(rule)
         @rules.delete(rule)
         # check whether NT on LHS is no longer present in the grammar
         @rules.each { |old_rule| 
-            # still present
-            return if old_rule.lhs.equal?(rule.lhs)
+            if old_rule.lhs == rule.lhs
+                # still present
+                return
+            end
         }
         # last occurrence removed
-        update_nt_count(-1)
+        @nonterminals.delete(rule.lhs)
     end
 
     def deepcopy
@@ -49,17 +49,16 @@ class CFG
     end
 
     private
-        def initialize_nt_count
-            # count non-terminals
-            counts = Hash.new(0)
+        def collect_symbols(type=nil)
+            symbols = Set.new
             @rules.each { |rule| 
-                counts[rule.lhs] += 1
-                rule.rhs.each { |rhs_sym| counts[rhs_sym] += 1 if rhs_sym.type == :nonterminal }
+                symbols.add(rule.lhs) if type == :nonterminal or type.nil?
+                rule.rhs.each { |rhs_sym| 
+                    if rhs_sym.type == type or type.nil?
+                        symbols.add(rhs_sym)
+                    end
+                }
             }
-            @nt_count = counts.size
-        end
-
-        def update_nt_count(delta)
-            @nt_count += delta
+            return symbols
         end
 end

@@ -26,7 +26,7 @@ grammar.remove_rule(grammar.rules[0])
 grammar.add_rule(r1_replacement)
 grammar.add_rule(r3)
 print grammar
-p grammar.nt_count
+p grammar.nonterminals.size
 p "deepcopy:"
 print grammar.deepcopy.to_s
 p grammar.equal?(grammar.deepcopy)
