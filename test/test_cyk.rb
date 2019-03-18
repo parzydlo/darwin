@@ -20,8 +20,6 @@ r2 = GrammarRule.new(nt_b, [t_x])
 r3 = GrammarRule.new(nt_c, [t_y])
 
 grammar = CFG.new([r1, r2, r3], nt_a)
-p grammar.nonterminals
-p grammar.terminals
 
-result = CYK.parse(grammar, "yyyyyyy")
-p result
+result = CYK.parse(grammar, "xy")
+pp result
