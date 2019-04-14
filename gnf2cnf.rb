@@ -36,6 +36,9 @@ class GNF2CNF
                     results << rule
                     next
                 end
+                # each terminal should yield a new rule
+                # since original rules are in GNF, only one new rule gets
+                # introduced
                 old_terminal = rule.rhs[0]
                 old_nts = rule.rhs[1..]
                 new_nt = GrammarSymbol.new(:nonterminal, curr_size)
@@ -50,6 +53,9 @@ class GNF2CNF
 
         def perform_bin
             # apply BIN to every rule whose RHS features more than 2 NTs
+            # assumes each rule to be in post-TERM form:
+            #     A -> b
+            #     A -> A B C D ....
             curr_size = @grammar.nonterminals.size
             result = []
             unfolded = []
@@ -70,6 +76,7 @@ class GNF2CNF
                 unfolded = []
                 if rule.rhs.size <= 2
                     # rule is like: A -> b or A -> BC
+                    # append original without modifying it
                     result << rule
                     next
                 end
