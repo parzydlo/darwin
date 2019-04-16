@@ -13,7 +13,11 @@ class GrammarSymbol
         else
             raise "#{type} is not a legal symbol type"
         end
-        @value = value
+        if value.class == String
+            @value = value
+        else
+            raise "NT value needs to be of type String"
+        end
     end
 
     def to_s

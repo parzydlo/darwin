@@ -41,7 +41,7 @@ class GNF2CNF
                 # introduced
                 old_terminal = rule.rhs[0]
                 old_nts = rule.rhs[1..]
-                new_nt = GrammarSymbol.new(:nonterminal, curr_size)
+                new_nt = GrammarSymbol.new(:nonterminal, curr_size.to_s)
                 replacement_rule = GrammarRule.new(rule.lhs, [new_nt] + old_nts)
                 new_rule = GrammarRule.new(new_nt, [old_terminal])
                 results << replacement_rule
@@ -61,7 +61,7 @@ class GNF2CNF
             unfolded = []
             unfold = lambda { |rule| 
                 return rule if rule.rhs.size <= 2
-                new_nt = GrammarSymbol.new(:nonterminal, curr_size)
+                new_nt = GrammarSymbol.new(:nonterminal, curr_size.to_s)
                 head = rule.rhs[0]
                 tail = rule.rhs[1..]
                 replacement_rule = GrammarRule.new(rule.lhs, [head, new_nt])
