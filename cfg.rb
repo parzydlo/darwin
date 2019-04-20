@@ -38,8 +38,8 @@ class CFG
         @nonterminals.delete(rule.lhs)
     end
 
-    def deepcopy
-        return CFG.new(@rules.map(&:deepcopy), @start_sym.deepcopy)
+    def copy
+        return CFG.new(@rules.map(&:copy), @start_sym)
     end
 
     def to_s

@@ -11,7 +11,7 @@ class GNF2CNF
 
     private
         def initialize(input)
-            @grammar = input.deepcopy
+            @grammar = input.copy
         end
 
         def cnf
@@ -27,15 +27,14 @@ class GNF2CNF
             # features a single terminal and it is the first element of RHS
             curr_size = @grammar.nonterminals.size
             results = []
-            p "performing TERM on #{@grammar.rules.size} rules"
             @grammar.rules.each_with_index { |rule, i| 
-                p "applying TERM to rule #{i}"
                 if rule.rhs.size == 1
                     # rule is: A -> b
                     # no need to increment NT counter
                     results << rule
                     next
                 end
+                # rule is: A -> b C D E ...
                 # each terminal should yield a new rule
                 # since original rules are in GNF, only one new rule gets
                 # introduced
@@ -72,7 +71,6 @@ class GNF2CNF
                 return new_rule
             }
             @grammar.rules.each_with_index { |rule, i| 
-                p "applying BIN to rule #{i}"
                 unfolded = []
                 if rule.rhs.size <= 2
                     # rule is like: A -> b or A -> BC

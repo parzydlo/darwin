@@ -5,7 +5,7 @@ class GrammarSymbol
     #         character (terminal)
     #         number (non-terminal)
 
-    attr_accessor :type, :value
+    attr_reader :type, :value
 
     def initialize(type, value)
         if [:terminal, :nonterminal].include? type
@@ -37,7 +37,7 @@ class GrammarSymbol
         return @value.hash - 7 * @type.hash
     end
 
-    def deepcopy
+    def copy
         return GrammarSymbol.new(@type, @value)
     end
 end

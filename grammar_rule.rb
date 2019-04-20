@@ -10,7 +10,7 @@ class GrammarRule
         "#{lhs} -> #{rhs.reduce("") { |rhs_repr, rhs_sym| rhs_repr + "#{rhs_sym} " }}"
     end
 
-    def deepcopy
-        return GrammarRule.new(lhs.deepcopy, rhs.map(&:deepcopy))
+    def copy
+        return GrammarRule.new(lhs, rhs)
     end
 end
