@@ -33,6 +33,10 @@ class GrammarSymbol
         other.instance_of?(self.class) && other.value == @value && other.type == @type
     end
 
+    def hash
+        return @value.hash - 7 * @type.hash
+    end
+
     def deepcopy
         return GrammarSymbol.new(@type, @value)
     end
