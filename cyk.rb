@@ -3,8 +3,10 @@ class CYK
     # assumes input grammar to be in CNF
 
     def self.parse(grammar, string)
+        nonterminals = grammar.nonterminals.to_a
+        terminals = grammar.terminals.to_a
         n = string.length
-        r = grammar.nonterminals.size
+        r = nonterminals.size
         # create n x n x r matrix
         tbl = Array.new(n) { |_| Array.new(n) { |_| Array.new(r, false) } }
         (0...n).each { |s| 
@@ -13,7 +15,7 @@ class CYK
                 next unless rule.rhs.size == 1
                 unit_terminal = rule.rhs[0]
                 if unit_terminal.value == string[s]
-                    v = grammar.nonterminals.index(rule.lhs)
+                    v = nonterminals.index(rule.lhs)
                     tbl[0][s][v] = true
                 end
             }
@@ -23,9 +25,9 @@ class CYK
                 (1..l - 1).each { |p| 
                     grammar.rules.each { |rule|
                         next unless rule.rhs.size == 2
-                        a = grammar.nonterminals.index(rule.lhs)
-                        b = grammar.nonterminals.index(rule.rhs[0])
-                        c = grammar.nonterminals.index(rule.rhs[1])
+                        a = nonterminals.index(rule.lhs)
+                        b = nonterminals.index(rule.rhs[0])
+                        c = nonterminals.index(rule.rhs[1])
                         if tbl[p - 1][s][b] and tbl[l - p - 1][s + p][c]
                             tbl[l - 1][s][a] = true
                         end
@@ -33,7 +35,7 @@ class CYK
                 }
             }
         }
-        v = grammar.nonterminals.index(grammar.start_sym)
+        v = nonterminals.index(grammar.start_sym)
         return tbl[n - 1][0][v]
     end
 end

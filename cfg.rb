@@ -59,6 +59,6 @@ class CFG
                     end
                 }
             }
-            return symbols.to_a
+            return symbols
         end
 end

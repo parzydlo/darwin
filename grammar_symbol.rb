@@ -29,6 +29,10 @@ class GrammarSymbol
         end
     end
 
+    def eql?(other)
+        other.instance_of?(self.class) && other.value == @value && other.type == @type
+    end
+
     def deepcopy
         return GrammarSymbol.new(@type, @value)
     end

@@ -36,5 +36,5 @@ r_8 = GrammarRule.new(nt_r, [t_1])
 
 grammar = CFG.new([r_0, r_1, r_2, r_3, r_4, r_5, r_6, r_7, r_8], nt_s)
 
-result = CYK.parse(grammar, "((")
+result = CYK.parse(grammar, "(())()")
 pp result
