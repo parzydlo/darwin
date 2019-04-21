@@ -7,27 +7,32 @@
 
 class GeneticInducer
 
-    def initialize(alphabet, nt_count, rule_count, max_rhs_list_len, population_size, generations)
+    def initialize(alphabet, nt_count, rule_count, max_rhs_list_len, mutation_prob, reproduction_fact, population_size, generations, sp, sn)
         @alphabet = alphabet.freeze
         @nt_count = nt_count.freeze
         @rule_count = rule_count.freeze
         @max_rhs_list_len = max_rhs_list_len.freeze
+        @mutation_probability = mutation_prob.freeze
+        @reproduction_factor = reproduction_fact.freeze
         @population_size = population_size.freeze
         @generations = generations.freeze
+        @sp = sp.freeze
+        @sn = sn.freeze
     end
 
     def induce
         @population_table = generate_population
         curr_generation = 0
-        loop {
-            break if curr_generation >= @generations
+        while curr_generation != @generations do
             # reproduction and mutation should be responsible for updating
             # fitness scores when neccessary
             perform_reproduction
             perform_mutation
             perform_natural_selection
             top_fit = @population_table.max_by { |_, fitness| fitness }
-        }
+            p "Generation: #{curr_generation} --- Top fitness: #{top_fit[1]}"
+            curr_generation += 1
+        end
         return top_fit
     end
 
@@ -39,21 +44,20 @@ class GeneticInducer
 
     def perform_natural_selection
         # keeps population size fixed by getting rid of least fit chromosomes
-        delta = @population_size - @population_table.size
-        scores = @population_table.values.sort
-        threshold = scores[-delta]
-        @population_table = @population_table.filter { |_, fitness| fitness > threshold }
+        @population_table = @population_table.sort_by { |_, fitness| -fitness }[0...@population_size].to_h
     end
 
     def generate_population
         # return a collection of CFGs of size @population_size
         # each CFG should have @rule_count rules, @nt_count nonterminals
         # and at most @max_rhs_list_len RHS variables
-        population = []
+        p "Generating initial population..."
+        population = Hash.new
+        curr_pop_size = 0
         nonterminals = []
         # generate pool of nonterminals
         (0..@nt_count).each { |nt_num| 
-            nt = GrammarSymbol.new(:nonterminal, nt_num)
+            nt = GrammarSymbol.new(:nonterminal, nt_num.to_s)
             nonterminals << nt
         }
         # generate pool of terminals
@@ -62,25 +66,34 @@ class GeneticInducer
             term = GrammarSymbol.new(:terminal, chr)
             terminals << term
         }
-        @population_size.times {
+        while curr_pop_size != @population_size do
             # generate @rule_count rules, where:
             #  rule is in GNF
             #  one of nonterminals is randomly chosen as LHS
             #  one of terminals is randomly chosen as RHS[0]
             #  0..max_rhs_list_len nonterminals are randomly chosen for the
             #  rest of RHS
-            rules = []
-            start_sym = nil
-            @rule_count.times {
-                lhs = nonterminals.sample
-                start_sym = lhs if start_sym.nil?
-                term = terminals.sample
-                rhs = [term] + nonterminals.sample(rand(@max_rhs_list_len))
-                rules << GrammarRule.new(lhs, rhs)
-            }
-            grammar = CFG.new(rules, start_sym)
-            @population_table[grammar] = fitness(grammar)
-        }
+            begin
+                rules = []
+                start_sym = nil
+                @rule_count.times {
+                    lhs = nonterminals.sample
+                    start_sym ||= lhs
+                    term = terminals.sample
+                    rhs = [term] + nonterminals.sample(rand(@max_rhs_list_len))
+                    rules << GrammarRule.new(lhs, rhs)
+                }
+                grammar = CFG.new(rules, start_sym)
+                fitness_value = fitness(grammar)
+            rescue
+                p "!!! invalid grammar generated - dropping chromosome !!!"
+            else
+                population[grammar] = fitness_value
+                curr_pop_size += 1
+            end
+        end
+        p "Done generating population."
+        return population
     end
 
     def fitness(chromosome)
@@ -88,11 +101,30 @@ class GeneticInducer
         # positive and negative samples
         cnf_repr = GNF2CNF.convert(chromosome)
         score = 0
-        @samples.each { |input_string, label| 
-            if CYK.parse(cnf_repr, input_string)
-                label ? score += 1 : score -= 1
-            else
-                !label ? score += 1 : score -= 1
+        @sp.each { |input_string| 
+            begin
+                if CYK.parse(cnf_repr, input_string)
+                    score += 1
+                else
+                    score -= 1
+                end
+            rescue
+                p "!!! failed parsing #{input_string} using following grammar: !!!"
+                print "#{cnf_repr}"
+                score -= 100
+            end
+        }
+        @sn.each { |input_string| 
+            begin
+                if !CYK.parse(cnf_repr, input_string)
+                    score += 1
+                else
+                    score -= 1
+                end
+            rescue
+                p "!!! failed parsing #{input_string} using following grammar: !!!"
+                print "#{cnf_repr}"
+                score -= 100
             end
         }
         return score
@@ -102,64 +134,107 @@ class GeneticInducer
         # mutation does not rely on fitness scores
         @population_table.each { |grammar, fitness| 
             # mutate each production rule with probability 1/200
+            terminals = grammar.terminals.to_a
+            nonterminals = grammar.nonterminals.to_a
             grammar.rules.each { |rule| 
-                if rand(200) == 0
+                if rand(@mutation_probability) == 0
                     # swap one of the symbols on RHS
                     index = rand(rule.rhs.size)
-                    if index == 0
-                        replacement = terminals.remove(rule.rhs[index]).sample
-                        new_rhs = [replacement] + rule.rhs[1..]
-                    elsif index == rule.rhs.size - 1
-                        replacement = nonterminals.remove(rule.rhs[index]).sample
-                        new_rhs = rule.rhs[0..rule.rhs.size - 1] + [replacement]
+                    if rule.rhs[index].type == :terminal
+                        rule.rhs[index] = terminals.sample
                     else
-                        replacement = nonterminals.remove(rule.rhs[index]).sample
-                        new_rhs = rule.rhs[0..index] + [replacement] + rule.rhs[index + 1..]
+                        rule.rhs[index] = nonterminals.sample
                     end
-                    mutated_rule = GrammarRule.new(rule.lhs, new_rhs)
-                    grammar.remove_rule(rule)
-                    grammar.add_rule(mutated_rule)
-                    # update fitness of mutated chromosome
-                    @population_table[grammar] = fitness(grammar)
                 end
             }
+            @population_table[grammar] = fitness(grammar)
         }
     end
 
     def perform_reproduction
         crossover = lambda { |p1, p2| 
-            outer_pivot_limit = [p1.rules.size, p2.rules.size].min
-            outer_pivot = rand(outer_pivot_limit)
-            # count possible cuts (before pivot rule, between LHS and RHS, length of RHS - 1)
-            inner_pivot_limit = 1 + [p1.rules[pivot].rhs.size, p2.rules[pivot].rhs.size].min
-            inner_pivot = rand(inner_pivot_limit)
+            # choose rule before which the cut is made
+            rule_pivot_lim = [p1.rules.size, p2.rules.size].min
+            rule_pivot = rand(rule_pivot_lim)
+            # count possible cuts:
+            #  before rule_pivot, between LHS and RHS of rule_pivot,
+            #  between any of the symbols on RHS of pivot_rule
+            #  (if the shorter RHS has k symbols, there are k - 1 cuts)
+            inner_pivot_lim = 2 + [p1.rules[rule_pivot].rhs.size, p2.rules[rule_pivot].rhs.size].min - 1
+            inner_pivot = rand(inner_pivot_lim)
             case inner_pivot
             when 0
-                # cut before rule
-                rules1 = p1.rules[0..outer_pivot] + p2.rules[outer_pivot..]
-                rules2 = p2.rules[0..outer_pivot] + p1.rules[outer_pivot..]
+                # cut before rule at rule_pivot
+                rules1 = p1.rules[0...rule_pivot] + p2.rules[rule_pivot..]
+                rules2 = p2.rules[0...rule_pivot] + p1.rules[rule_pivot..]
             when 1
-                # cut between LHS and RHS of rule
-                pivot_rule1 = GrammarRule.new(p1.rules[outer_pivot].lhs,
-                                              p2.rules[outer_pivot].rhs)
-                pivot_rule2 = GrammarRule.new(p2.rules[outer_pivot].lhs,
-                                              p1.rules[outer_pivot].rhs)
-                rules1 = p1.rules[0..outer_pivot] + [pivot_rule1] + p2.rules[outer_pivot+1..]
-                rules2 = p2.rules[0..outer_pivot] + [pivot_rule2] + p1.rules[outer_pivot+1..]
+                # cut between LHS and RHS of rule at rule_pivot
+                # first child
+                head1 = p1.rules[0...rule_pivot]
+                head1 ||= []
+                split_rule1 = GrammarRule.new(
+                    p1.rules[rule_pivot].lhs,
+                    p2.rules[rule_pivot].rhs
+                )
+                tail1 = p2.rules[rule_pivot + 1..]
+                tail1 ||= []
+                # second child
+                head2 = p2.rules[0...rule_pivot]
+                head2 ||= []
+                split_rule2 = GrammarRule.new(
+                    p2.rules[rule_pivot].lhs,
+                    p1.rules[rule_pivot].rhs
+                )
+                tail2 = p1.rules[rule_pivot + 1..]
+                tail2 ||= []
+                rules1 = head1 + [split_rule1] + tail1
+                rules2 = head2 + [split_rule2] + tail2
             else
-                # cut after RHS[inner_pivot - 2]
-                pivot_rule1 = GrammarRule.new(p1.rules[outer_pivot].lhs,
-                                              p1.rules[outer_pivot].rhs[0..inner_pivot-2])
+                # cut between symbols on RHS of rule at rule_pivot
+                rhs_pivot = inner_pivot - 2
+                # first child
+                head1 = p1.rules[0...rule_pivot]
+                head1 ||= []
+                rhs_head1 = p1.rules[rule_pivot].rhs[0...rhs_pivot]
+                rhs_head1 ||= []
+                rhs_tail1 = p2.rules[rule_pivot].rhs[rhs_pivot..]
+                rhs_tail1 ||= []
+                split_rule1 = GrammarRule.new(
+                    p1.rules[rule_pivot].lhs,
+                    rhs_head1 + rhs_tail1
+                )
+                tail1 = p2.rules[rule_pivot + 1..]
+                tail1 ||= []
+                # second child
+                head2 = p2.rules[0...rule_pivot]
+                head2 ||= []
+                rhs_head2 = p2.rules[rule_pivot].rhs[0...rhs_pivot]
+                rhs_head2 ||= []
+                rhs_tail2 = p1.rules[rule_pivot].rhs[rhs_pivot..]
+                rhs_tail2 ||= []
+                split_rule2 = GrammarRule.new(
+                    p2.rules[rule_pivot].lhs,
+                    rhs_head2 + rhs_tail2
+                )
+                tail2 = p1.rules[rule_pivot + 1..]
+                tail2 ||= []
+                rules1 = head1 + [split_rule1] + tail1
+                rules2 = head2 + [split_rule2] + tail2
             end
+            start1 = rules1[0].lhs
+            start2 = rules2[0].lhs
+            c1 = CFG.new(rules1, start1)
+            c2 = CFG.new(rules2, start2)
+            return c1, c2
         }
-        # fetch fittest 10% of population and apply one-point crossover
+        # fetch fittest subset of population and apply one-point crossover
         # to produce 2 offspring per pair
-        n = (@population_size / 10).floor
+        n = (@population_size * @reproduction_factor).floor
         n += 1 if n % 2 == 1
-        fittest_pool = @population_table.sort_by { |_, fitness| fitness }[0..n].to_h.keys.shuffle
-        (0..n - 1).step(2) { |i| 
-            parent1 = fittest[i]
-            parent2 = fittest[i + 1]
+        fittest_pool = @population_table.sort_by { |_, fitness| -fitness }[0...n].to_h.keys
+        (0...n).step(2) { |i| 
+            parent1 = fittest_pool[i]
+            parent2 = fittest_pool[i + 1]
             child1, child2 = crossover[parent1, parent2]
             @population_table[child1] = fitness(child1)
             @population_table[child2] = fitness(child2)
