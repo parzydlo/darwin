@@ -26,9 +26,3 @@ p gnf_grammar
 
 cnf_grammar = GNF2CNF.convert(gnf_grammar)
 print cnf_grammar
-# desired output:
-# A -> C E
-# B -> D B
-# D -> y
-# C -> x
-# E -> B A
